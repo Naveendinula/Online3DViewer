@@ -1,0 +1,177 @@
+/* Studio Layout - Floating Panels over Fullscreen Canvas */
+
+/* Reset Main Container to be full screen relative */
+.main {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: block !important; /* Override default display:none */
+    overflow: hidden;
+}
+
+/* 1. The 3D Viewer (Canvas) - Background Layer */
+.main_viewer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.main_viewer canvas {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    margin: 0 !important;
+    outline: none;
+}
+
+/* 2. UI Layer - Floating on top */
+.studio_ui_container {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none; /* Let clicks pass through to canvas where there is no UI */
+    display: grid;
+    grid-template-columns: 320px 1fr 360px;
+    grid-template-rows: 60px 1fr 80px;
+    grid-template-areas:
+        "header header header"
+        "left center right"
+        "left bottom right";
+    padding: var(--studio-spacing-base);
+    gap: var(--studio-spacing-base);
+}
+
+/* Header Area */
+.header {
+    grid-area: header;
+    pointer-events: auto;
+    background: var(--studio-bg-glass);
+    backdrop-filter: var(--studio-blur);
+    border: 1px solid var(--studio-border);
+    border-radius: var(--studio-radius-lg);
+    display: flex !important; /* Override */
+    align-items: center;
+    padding: 0 20px;
+    box-shadow: var(--studio-shadow-panel);
+}
+
+.header .title {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.logo_text {
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 14px !important;
+}
+
+/* Left Panel (Navigator) */
+.main_left_container {
+    grid-area: left;
+    pointer-events: auto;
+    background: var(--studio-bg-glass);
+    backdrop-filter: var(--studio-blur);
+    border: 1px solid var(--studio-border);
+    border-radius: var(--studio-radius-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: var(--studio-shadow-panel);
+    height: 100%;
+    width: 100% !important; /* Override inline styles */
+    float: none !important;
+}
+
+/* Right Panel (Sidebar/Analytics) */
+.main_right_container {
+    grid-area: right;
+    pointer-events: auto;
+    background: var(--studio-bg-glass);
+    backdrop-filter: var(--studio-blur);
+    border: 1px solid var(--studio-border);
+    border-radius: var(--studio-radius-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: var(--studio-shadow-panel);
+    height: 100%;
+    width: 100% !important; /* Override inline styles */
+    float: none !important;
+}
+
+/* Bottom / Toolbar Area */
+.studio_toolbar_container {
+    grid-area: bottom;
+    pointer-events: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding-bottom: 10px;
+}
+
+.toolbar {
+    background: var(--studio-bg-glass) !important;
+    backdrop-filter: var(--studio-blur);
+    border: 1px solid var(--studio-border);
+    border-radius: 100px; /* Pill shape */
+    padding: 8px 20px;
+    display: flex;
+    gap: 10px;
+    box-shadow: var(--studio-shadow-panel);
+}
+
+/* Hide Splitters in this mode */
+.main_splitter {
+    display: none !important;
+}
+
+/* Component Overrides */
+.ov_panel_set_container, .ov_panel_set_right_container {
+    width: 100% !important;
+    height: 100% !important;
+    background: transparent !important;
+}
+
+.ov_panel_set_menu {
+    background: rgba(0,0,0,0.2) !important;
+    border-bottom: 1px solid var(--studio-border);
+}
+
+.ov_panel_set_content {
+    background: transparent !important;
+    padding: 0 20px !important; /* Added padding for breathing room */
+    border: none !important;
+}
+
+.ov_tree_item {
+    color: var(--studio-text-muted);
+    border-radius: 4px;
+    margin: 2px 8px;
+}
+
+.ov_tree_item:hover {
+    background: rgba(255,255,255,0.05);
+    color: var(--studio-text-main);
+}
+
+.ov_tree_item.selected {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: var(--studio-accent-primary) !important;
+    border-left: 2px solid var(--studio-accent-primary);
+}
+
+/* Analytics Cards Overrides */
+.ov_kpi_card {
+    background: rgba(255,255,255,0.03) !important;
+    border: 1px solid var(--studio-border) !important;
+}
+
+.ov_chart_container {
+    background: rgba(255,255,255,0.03) !important;
+    border: 1px solid var(--studio-border) !important;
+}

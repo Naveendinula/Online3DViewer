@@ -19,6 +19,9 @@ import './css/treeview.css';
 import './css/panelset.css';
 import './css/navigator.css';
 import './css/sidebar.css';
+import './css/analytics.css';
+import './css/theme_studio.css';
+import './css/layout_studio.css';
 import './css/website.css';
 import './css/embed.css';
 

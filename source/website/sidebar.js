@@ -1,5 +1,6 @@
 import { GetDomElementOuterWidth, SetDomElementOuterHeight, SetDomElementOuterWidth } from '../engine/viewer/domutils.js';
 import { PanelSet } from './panelset.js';
+import { SidebarAnalyticsPanel } from './sidebaranalyticspanel.js';
 import { SidebarDetailsPanel } from './sidebardetailspanel.js';
 import { SidebarSettingsPanel } from './sidebarsettingspanel.js';
 
@@ -10,12 +11,14 @@ export class Sidebar
         this.mainDiv = mainDiv;
         this.panelSet = new PanelSet (mainDiv);
 
+        this.analyticsPanel = new SidebarAnalyticsPanel (this.panelSet.GetContentDiv ());
         this.detailsPanel = new SidebarDetailsPanel (this.panelSet.GetContentDiv ());
         this.settingsPanel = new SidebarSettingsPanel (this.panelSet.GetContentDiv (), settings);
 
+        this.panelSet.AddPanel (this.analyticsPanel);
         this.panelSet.AddPanel (this.detailsPanel);
         this.panelSet.AddPanel (this.settingsPanel);
-        this.panelSet.ShowPanel (this.detailsPanel);
+        this.panelSet.ShowPanel (this.analyticsPanel);
     }
 
     IsPanelsVisible ()
@@ -95,6 +98,11 @@ export class Sidebar
     Clear ()
     {
         this.panelSet.Clear ();
+    }
+
+    UpdateAnalytics (model)
+    {
+        this.analyticsPanel.UpdateAnalytics (model);
     }
 
     AddObject3DProperties (model, object3D)

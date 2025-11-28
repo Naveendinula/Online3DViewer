@@ -1,4 +1,5 @@
 import { GetDomElementOuterWidth, SetDomElementOuterHeight, SetDomElementOuterWidth } from '../engine/viewer/domutils.js';
+import { NavigatorBuildingPanel } from './navigatorbuildingpanel.js';
 import { NavigatorFilesPanel } from './navigatorfilespanel.js';
 import { NavigatorMaterialsPanel } from './navigatormaterialspanel.js';
 import { NavigatorMeshesPanel } from './navigatormeshespanel.js';
@@ -48,14 +49,16 @@ export class Navigator
         this.selection = null;
         this.tempSelectedMeshId = null;
 
+        this.buildingPanel = new NavigatorBuildingPanel (this.panelSet.GetContentDiv ());
         this.filesPanel = new NavigatorFilesPanel (this.panelSet.GetContentDiv ());
         this.materialsPanel = new NavigatorMaterialsPanel (this.panelSet.GetContentDiv ());
         this.meshesPanel = new NavigatorMeshesPanel (this.panelSet.GetContentDiv ());
 
+        this.panelSet.AddPanel (this.buildingPanel);
         this.panelSet.AddPanel (this.filesPanel);
         this.panelSet.AddPanel (this.materialsPanel);
         this.panelSet.AddPanel (this.meshesPanel);
-        this.panelSet.ShowPanel (this.meshesPanel);
+        this.panelSet.ShowPanel (this.buildingPanel);
     }
 
     IsPanelsVisible ()
@@ -78,6 +81,12 @@ export class Navigator
             },
             onShowHidePanels : (show) => {
                 this.callbacks.onShowHidePanels (show);
+            }
+        });
+
+        this.buildingPanel.Init ({
+            onMeshSelected : (meshId) => {
+                this.SetSelection (new Selection (SelectionType.Mesh, meshId));
             }
         });
 
@@ -143,6 +152,7 @@ export class Navigator
 
     FillTree (importResult)
     {
+        this.buildingPanel.Fill (importResult);
         this.filesPanel.Fill (importResult);
         if (importResult.missingFiles.length === 0) {
             this.panelSet.SetPanelIcon (this.filesPanel, 'files');

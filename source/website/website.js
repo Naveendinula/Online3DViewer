@@ -55,130 +55,32 @@ class WebsiteLayouter
 
     Init ()
     {
-        this.InstallSplitter (this.parameters.navigatorSplitterDiv, this.parameters.navigatorDiv, (originalWidth, xDiff) => {
-            let newWidth = originalWidth + xDiff;
-            this.OnSplitterDragged (newWidth - this.navigator.GetWidth (), 0);
-        });
-
-        this.InstallSplitter (this.parameters.sidebarSplitterDiv, this.parameters.sidebarDiv, (originalWidth, xDiff) => {
-            let newWidth = originalWidth - xDiff;
-            this.OnSplitterDragged (0, newWidth - this.sidebar.GetWidth ());
-        });
-
+        // Studio Layout: Splitters are disabled.
         this.Resize ();
     }
 
     InstallSplitter (splitterDiv, resizedDiv, onSplit)
     {
-        let originalWidth = null;
-        CreateVerticalSplitter (splitterDiv, {
-            onSplitStart : () => {
-                originalWidth = GetDomElementOuterWidth (resizedDiv);
-            },
-            onSplit : (xDiff) => {
-                onSplit (originalWidth, xDiff);
-            }
-        });
+        // Studio Layout: Splitters are disabled.
     }
 
     OnSplitterDragged (leftDiff, rightDiff)
     {
-        let windowWidth = window.innerWidth;
-
-        let navigatorWidth = this.navigator.GetWidth ();
-        let sidebarWidth = this.sidebar.GetWidth ();
-
-        let leftWidth = GetDomElementOuterWidth (this.parameters.leftContainerDiv);
-        let rightWidth = GetDomElementOuterWidth (this.parameters.rightContainerDiv);
-
-        let newLeftWidth = leftWidth + leftDiff;
-        let newRightWidth = rightWidth + rightDiff;
-        let contentNewWidth = windowWidth - newLeftWidth - newRightWidth;
-
-        let isNavigatorVisible = this.navigator.IsPanelsVisible ();
-        let isSidebarVisible = this.sidebar.IsPanelsVisible ();
-
-        if (isNavigatorVisible && newLeftWidth < this.limits.minPanelWidth) {
-            newLeftWidth = this.limits.minPanelWidth;
-        }
-
-        if (isSidebarVisible && newRightWidth < this.limits.minPanelWidth) {
-            newRightWidth = this.limits.minPanelWidth;
-        }
-
-        if (contentNewWidth < this.limits.minCanvasWidth) {
-            if (leftDiff > 0) {
-                newLeftWidth = windowWidth - newRightWidth - this.limits.minCanvasWidth;
-            } else if (rightDiff > 0) {
-                newRightWidth = windowWidth - newLeftWidth - this.limits.minCanvasWidth;
-            }
-        }
-
-        if (isNavigatorVisible) {
-            let newNavigatorWidth = navigatorWidth + (newLeftWidth - leftWidth);
-            this.navigator.SetWidth (newNavigatorWidth);
-        }
-        if (isSidebarVisible) {
-            let newSidebarWidth = sidebarWidth + (newRightWidth - rightWidth);
-            this.sidebar.SetWidth (newSidebarWidth);
-        }
-
-        this.Resize ();
+        // Studio Layout: Splitters are disabled.
     }
 
     Resize ()
     {
         let windowWidth = window.innerWidth;
         let windowHeight = window.innerHeight;
-        let headerHeight = this.parameters.headerDiv.offsetHeight;
 
-        let leftWidth = 0;
-        let rightWidth = 0;
-        let safetyMargin = 0;
-        if (!IsSmallWidth ()) {
-            leftWidth = GetDomElementOuterWidth (this.parameters.leftContainerDiv);
-            rightWidth = GetDomElementOuterWidth (this.parameters.rightContainerDiv);
-            safetyMargin = 1;
-        }
+        // Studio Layout: Viewer is always full screen
+        this.viewer.Resize (windowWidth, windowHeight);
 
-        let contentWidth = windowWidth - leftWidth - rightWidth;
-        let contentHeight = windowHeight - headerHeight;
-
-        if (contentWidth < this.limits.minCanvasWidth) {
-            let neededIncrease = this.limits.minCanvasWidth - contentWidth;
-
-            let isNavigatorVisible = this.navigator.IsPanelsVisible ();
-            let isSidebarVisible = this.sidebar.IsPanelsVisible ();
-
-            if (neededIncrease > 0 && isNavigatorVisible) {
-                let navigatorDecrease = Math.min (neededIncrease, leftWidth - this.limits.minPanelWidth);
-                this.navigator.SetWidth (this.navigator.GetWidth () - navigatorDecrease);
-                neededIncrease = neededIncrease - navigatorDecrease;
-            }
-
-            if (neededIncrease > 0 && isSidebarVisible) {
-                let sidebarDecrease = Math.min (neededIncrease, rightWidth - this.limits.minPanelWidth);
-                this.sidebar.SetWidth (this.sidebar.GetWidth () - sidebarDecrease);
-            }
-
-            leftWidth = GetDomElementOuterWidth (this.parameters.leftContainerDiv);
-            rightWidth = GetDomElementOuterWidth (this.parameters.rightContainerDiv);
-            contentWidth = windowWidth - leftWidth - rightWidth;
-        }
-
-        this.navigator.Resize (contentHeight);
-        SetDomElementOuterHeight (this.parameters.navigatorSplitterDiv, contentHeight);
-
-        this.sidebar.Resize (contentHeight);
-        SetDomElementOuterHeight (this.parameters.sidebarSplitterDiv, contentHeight);
-
-        SetDomElementOuterHeight (this.parameters.introDiv, contentHeight);
-        this.viewer.Resize (contentWidth - safetyMargin, contentHeight);
-
-        let introContentHeight = GetDomElementOuterHeight (this.parameters.introContentDiv);
-        let introContentTop = (contentHeight - introContentHeight) / 3.0;
-        this.parameters.introContentDiv.style.top = introContentTop.toString () + 'px';
-
+        // Panels are handled by CSS Grid/Flexbox in layout_studio.css
+        // We just need to ensure the internal components update if they need to.
+        this.navigator.Resize (windowHeight - 100); // Approximate available height
+        this.sidebar.Resize (windowHeight - 100);
         this.measureTool.Resize ();
     }
 }
@@ -304,6 +206,7 @@ export class Website
         this.viewer.SetUpVector (Direction.Y, false);
         this.navigator.FillTree (importResult);
         this.sidebar.UpdateControlsVisibility ();
+        this.sidebar.UpdateAnalytics (this.model);
         this.FitModelToWindow (true);
     }
 
