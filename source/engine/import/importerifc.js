@@ -16,6 +16,7 @@ export class ImporterIfc extends ImporterBase
     {
         super ();
         this.ifc = null;
+        this.buildingStructure = null;
     }
 
     CanImportExtension (extension)
@@ -28,16 +29,23 @@ export class ImporterIfc extends ImporterBase
         return Direction.Y;
     }
 
+    GetBuildingStructure ()
+    {
+        return this.buildingStructure;
+    }
+
     ClearContent ()
     {
         this.expressIDToMesh = null;
         this.colorToMaterial = null;
+        this.buildingStructure = null;
     }
 
     ResetContent ()
     {
         this.expressIDToMesh = new Map ();
         this.colorToMaterial = new ColorToMaterialConverter (this.model);
+        this.buildingStructure = null;
     }
 
     ImportContent (fileContent, onFinish)
@@ -73,7 +81,88 @@ export class ImporterIfc extends ImporterBase
             }
         }
         this.ImportProperties (modelID);
+        
+        // Extract building structure
+        this.buildingStructure = this.ExtractBuildingStructure(modelID);
+        
         this.ifc.CloseModel (modelID);
+    }
+
+    ExtractBuildingStructure(modelID)
+    {
+        console.log('[ImporterIfc] Extracting building structure...');
+
+        // Helper to get related objects via RelAggregates
+        const getRelatedObjects = (relatingID) => {
+            const related = [];
+            const lines = this.ifc.GetLineIDsWithType(modelID, WebIFC.IFCRELAGGREGATES);
+            for (let i = 0; i < lines.size(); i++) {
+                const relID = lines.get(i);
+                const rel = this.ifc.GetLine(modelID, relID);
+                if (rel.RelatingObject.value === relatingID) {
+                    rel.RelatedObjects.forEach(obj => {
+                        related.push(this.ifc.GetLine(modelID, obj.value));
+                    });
+                }
+            }
+            return related;
+        };
+
+        // Find Building
+        const buildings = this.ifc.GetLineIDsWithType(modelID, WebIFC.IFCBUILDING);
+        if (buildings.size() === 0) {
+            console.warn('[ImporterIfc] No IFCBUILDING found.');
+            return null;
+        }
+        
+        const buildingID = buildings.get(0);
+        const building = this.ifc.GetLine(modelID, buildingID);
+        
+        const buildingNode = {
+            id: building.expressID,
+            name: this.GetIFCString(building.Name?.value || 'Building'),
+            floors: []
+        };
+
+        console.log('[ImporterIfc] Found building:', buildingNode.name);
+
+        // Find Floors (BuildingStoreys)
+        // Note: Sometimes Building -> Site -> Project, or Project -> Site -> Building
+        // We assume we found the building, now look for storeys aggregated in it.
+        const floors = getRelatedObjects(building.expressID);
+        
+        for (const floor of floors) {
+            if (floor.type === WebIFC.IFCBUILDINGSTOREY) {
+                const floorNode = {
+                    id: floor.expressID,
+                    name: this.GetIFCString(floor.Name?.value || 'Floor'),
+                    elevation: floor.Elevation?.value || 0,
+                    zones: []
+                };
+
+                // Find Zones (Spaces)
+                const spaces = getRelatedObjects(floor.expressID);
+                for (const space of spaces) {
+                    if (space.type === WebIFC.IFCSPACE) {
+                        const zoneNode = {
+                            id: space.expressID,
+                            name: this.GetIFCString(space.Name?.value || 'Space'),
+                            // TODO: Area/Volume from properties if needed
+                        };
+                        floorNode.zones.push(zoneNode);
+                    }
+                }
+                
+                buildingNode.floors.push(floorNode);
+            }
+        }
+        
+        // Sort floors by elevation
+        buildingNode.floors.sort((a, b) => a.elevation - b.elevation);
+        
+        console.log(`[ImporterIfc] Extracted ${buildingNode.floors.length} floors.`);
+
+        return buildingNode;
     }
 
     ImportIfcMesh (modelID, ifcMesh)

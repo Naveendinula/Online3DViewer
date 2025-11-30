@@ -1,5 +1,6 @@
 import { GetDomElementOuterWidth, SetDomElementOuterHeight, SetDomElementOuterWidth } from '../engine/viewer/domutils.js';
 import { NavigatorBuildingPanel } from './navigatorbuildingpanel.js';
+import { NavigatorStructurePanel } from './navigatorstructurepanel.js';
 import { NavigatorFilesPanel } from './navigatorfilespanel.js';
 import { NavigatorMaterialsPanel } from './navigatormaterialspanel.js';
 import { NavigatorMeshesPanel } from './navigatormeshespanel.js';
@@ -50,11 +51,13 @@ export class Navigator
         this.tempSelectedMeshId = null;
 
         this.buildingPanel = new NavigatorBuildingPanel (this.panelSet.GetContentDiv ());
+        this.structurePanel = new NavigatorStructurePanel (this.panelSet.GetContentDiv ());
         this.filesPanel = new NavigatorFilesPanel (this.panelSet.GetContentDiv ());
         this.materialsPanel = new NavigatorMaterialsPanel (this.panelSet.GetContentDiv ());
         this.meshesPanel = new NavigatorMeshesPanel (this.panelSet.GetContentDiv ());
 
         this.panelSet.AddPanel (this.buildingPanel);
+        this.panelSet.AddPanel (this.structurePanel);
         this.panelSet.AddPanel (this.filesPanel);
         this.panelSet.AddPanel (this.materialsPanel);
         this.panelSet.AddPanel (this.meshesPanel);
@@ -87,6 +90,13 @@ export class Navigator
         this.buildingPanel.Init ({
             onMeshSelected : (meshId) => {
                 this.SetSelection (new Selection (SelectionType.Mesh, meshId));
+            }
+        });
+
+        this.structurePanel.Init ({
+            onEntitySelected : (entity) => {
+                console.log('Entity Selected:', entity);
+                // Future: Handle selection in viewer
             }
         });
 
@@ -153,6 +163,7 @@ export class Navigator
     FillTree (importResult)
     {
         this.buildingPanel.Fill (importResult);
+        this.structurePanel.Fill (importResult);
         this.filesPanel.Fill (importResult);
         if (importResult.missingFiles.length === 0) {
             this.panelSet.SetPanelIcon (this.filesPanel, 'files');

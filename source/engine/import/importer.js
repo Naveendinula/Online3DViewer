@@ -53,6 +53,7 @@ export class ImportResult
         this.upVector = null;
         this.usedFiles = null;
         this.missingFiles = null;
+        this.buildingStructure = null; // Added for Building Structure Panel
     }
 }
 
@@ -233,6 +234,9 @@ export class Importer
                 result.usedFiles = this.usedFiles;
                 result.missingFiles = this.missingFiles;
                 result.upVector = importer.GetUpDirection ();
+                if (importer.GetBuildingStructure) {
+                    result.buildingStructure = importer.GetBuildingStructure();
+                }
                 callbacks.onImportSuccess (result);
             },
             onError : () => {

@@ -29,6 +29,10 @@ import { EnumeratePlugins, PluginType } from './pluginregistry.js';
 import { EnvironmentSettings } from '../engine/viewer/shadingmodel.js';
 import { IntersectionMode } from '../engine/viewer/viewermodel.js';
 import { Loc } from '../engine/core/localization.js';
+import { DigitalTwinIntegration } from './digital_twin_integration.js';
+import { SectionBox } from './sectionbox.js';
+import { setBuildingStructureData, clearBuildingStructureData } from './building_structure_model.js';
+import * as THREE from 'three';
 
 const WebsiteUIState =
 {
@@ -104,6 +108,7 @@ export class Website
         this.uiState = WebsiteUIState.Undefined;
         this.layouter = new WebsiteLayouter (this.parameters, this.navigator, this.sidebar, this.viewer, this.measureTool);
         this.model = null;
+        this.sectionBox = new SectionBox (this.viewer);
     }
 
     Load ()
@@ -142,6 +147,29 @@ export class Website
         window.addEventListener ('resize', () => {
 			this.layouter.Resize ();
 		});
+    }
+
+    EnableSectionBox (enable)
+    {
+        this.sectionBox.Enable (enable);
+        if (enable) {
+            let boundingBox = this.viewer.GetBoundingBox ((meshUserData) => {
+                return this.navigator.IsMeshVisible (meshUserData.originalMeshInstance.id);
+            });
+            this.sectionBox.SetBox (boundingBox);
+        }
+    }
+
+    FitSectionBoxToSelection ()
+    {
+        let selectedMeshId = this.navigator.GetSelectedMeshId ();
+        if (selectedMeshId === null) {
+            return;
+        }
+        let boundingBox = this.viewer.GetBoundingBox ((meshUserData) => {
+            return meshUserData.originalMeshInstance.id.IsEqual (selectedMeshId);
+        });
+        this.sectionBox.SetBox (boundingBox);
     }
 
     HasLoadedModel ()
@@ -204,6 +232,31 @@ export class Website
         this.parameters.fileNameDiv.innerHTML = importResult.mainFile;
         this.viewer.SetMainObject (threeObject);
         this.viewer.SetUpVector (Direction.Y, false);
+
+        // Populate Building Structure Model BEFORE filling the tree
+        if (importResult.buildingStructure) {
+            console.log('[Website] Populating Building Structure Model');
+            const entityToGeo = new Map();
+            const geoToEntity = new Map();
+            
+            this.model.EnumerateMeshInstances((meshInstance) => {
+                const mesh = meshInstance.GetMesh();
+                const name = mesh.GetName();
+                // Name format: "Mesh {expressID}"
+                const match = name && name.match(/^Mesh (\d+)$/);
+                if (match) {
+                    const expressID = parseInt(match[1]);
+                    entityToGeo.set(expressID, meshInstance);
+                    geoToEntity.set(meshInstance, expressID);
+                }
+            });
+            
+            setBuildingStructureData(importResult.buildingStructure, entityToGeo, geoToEntity);
+        } else {
+            console.log('[Website] No Building Structure found in import result');
+            clearBuildingStructureData();
+        }
+
         this.navigator.FillTree (importResult);
         this.sidebar.UpdateControlsVisibility ();
         this.sidebar.UpdateAnalytics (this.model);
@@ -272,6 +325,15 @@ export class Website
                     this.navigator.FitMeshToWindow (meshUserData.originalMeshInstance.id);
                 }
             });
+            if (this.sectionBox.IsEnabled ()) {
+                items.push ({
+                    name : Loc ('Fit section box to selection'),
+                    icon : 'fit',
+                    onClick : () => {
+                        this.FitSectionBoxToSelection ();
+                    }
+                });
+            }
             if (this.navigator.MeshItemCount () > 1) {
                 let isMeshIsolated = this.navigator.IsMeshIsolated (meshUserData.originalMeshInstance.id);
                 items.push ({
@@ -634,6 +696,11 @@ export class Website
         AddSeparator (this.toolbar, ['only_full_width', 'only_on_model']);
         AddButton (this.toolbar, 'snapshot', Loc ('Create snapshot'), ['only_full_width', 'only_on_model'], () => {
             ShowSnapshotDialog (this.viewer);
+        });
+
+        AddSeparator (this.toolbar, ['only_full_width', 'only_on_model']);
+        AddPushButton (this.toolbar, 'model', Loc ('Section Box'), ['only_full_width', 'only_on_model'], (isSelected) => {
+            this.EnableSectionBox (isSelected);
         });
 
         EnumeratePlugins (PluginType.Toolbar, (plugin) => {
