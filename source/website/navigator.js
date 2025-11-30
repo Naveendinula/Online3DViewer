@@ -96,7 +96,10 @@ export class Navigator
         this.structurePanel.Init ({
             onEntitySelected : (entity) => {
                 console.log('Entity Selected:', entity);
-                // Future: Handle selection in viewer
+                // Forward to website callback for viewer interaction
+                if (this.callbacks.onStructureEntitySelected) {
+                    this.callbacks.onStructureEntitySelected (entity);
+                }
             }
         });
 
@@ -319,6 +322,20 @@ export class Navigator
     FitMeshToWindow (meshInstanceId)
     {
         this.callbacks.fitMeshToWindow (meshInstanceId);
+    }
+    
+    /**
+     * Select a structure entity (building/floor/zone) in the structure panel
+     * @param {Object} entity - { entityType, entityId }
+     * @param {boolean} fireCallback - Whether to fire the selection callback
+     */
+    SelectStructureEntity (entity, fireCallback = false)
+    {
+        // Switch to structure panel to show the selection
+        if (entity && this.panelSet.IsPanelsVisible ()) {
+            this.panelSet.ShowPanel (this.structurePanel);
+        }
+        this.structurePanel.SelectEntityById (entity, fireCallback);
     }
 
     Clear ()

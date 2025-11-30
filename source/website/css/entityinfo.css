@@ -1,0 +1,119 @@
+/* Entity Info Panel Styles */
+
+div.ov_entity_info_message
+{
+    color: var(--ov_light_text_color);
+    font-style: italic;
+    padding: 20px 10px;
+    text-align: center;
+}
+
+div.ov_entity_info_header
+{
+    padding: 10px 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--ov_border_color);
+}
+
+div.ov_entity_info_type_badge
+{
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+div.ov_entity_info_type_badge.ov_entity_type_building
+{
+    background-color: #3498db;
+    color: white;
+}
+
+div.ov_entity_info_type_badge.ov_entity_type_floor
+{
+    background-color: #27ae60;
+    color: white;
+}
+
+div.ov_entity_info_type_badge.ov_entity_type_zone
+{
+    background-color: #e67e22;
+    color: white;
+}
+
+div.ov_entity_info_name
+{
+    font-size: 16px;
+    font-weight: bold;
+    word-wrap: break-word;
+}
+
+div.ov_entity_info_section
+{
+    margin-bottom: 20px;
+}
+
+div.ov_entity_info_section_title
+{
+    font-weight: bold;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--ov_light_text_color);
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--ov_border_color);
+}
+
+div.ov_entity_info_placeholder
+{
+    opacity: 0.7;
+}
+
+div.ov_entity_info_placeholder_content
+{
+    color: var(--ov_light_text_color);
+    font-style: italic;
+    font-size: 12px;
+    padding: 10px;
+    background-color: var(--ov_background_color);
+    border-radius: 4px;
+    border: 1px dashed var(--ov_border_color);
+}
+
+/* Property table styles for entity info */
+div.ov_entity_info_section div.ov_property_table
+{
+    width: 100%;
+}
+
+div.ov_entity_info_section div.ov_property_table_row
+{
+    display: flex;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--ov_border_color);
+}
+
+div.ov_entity_info_section div.ov_property_table_row:last-child
+{
+    border-bottom: none;
+}
+
+div.ov_entity_info_section div.ov_property_table_cell
+{
+    flex: 1;
+}
+
+div.ov_entity_info_section div.ov_property_table_name
+{
+    color: var(--ov_light_text_color);
+    font-size: 12px;
+}
+
+div.ov_entity_info_section div.ov_property_table_value
+{
+    text-align: right;
+    font-weight: 500;
+}

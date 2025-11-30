@@ -31,7 +31,8 @@ import { IntersectionMode } from '../engine/viewer/viewermodel.js';
 import { Loc } from '../engine/core/localization.js';
 import { DigitalTwinIntegration } from './digital_twin_integration.js';
 import { SectionBox } from './sectionbox.js';
-import { setBuildingStructureData, clearBuildingStructureData } from './building_structure_model.js';
+import { setBuildingStructureData, clearBuildingStructureData, getExpressIdsForEntity, getEntityForExpressId } from './building_structure_model.js';
+import { highlightGeometryByExpressIds, clearGeometryHighlight, frameCameraOnExpressIds, frameCameraOnModel, StructureHighlightColor } from './viewer_selection.js';
 import * as THREE from 'three';
 
 const WebsiteUIState =
@@ -321,9 +322,54 @@ export class Website
         let meshUserData = this.viewer.GetMeshUserDataUnderMouse (IntersectionMode.MeshAndLine, mouseCoordinates);
         if (meshUserData === null) {
             this.navigator.SetSelection (null);
+            // Clear structure selection and highlight
+            this.navigator.SelectStructureEntity (null);
+            clearGeometryHighlight (this.viewer);
+            this.sidebar.UpdateEntityInfo (null);
         } else {
+            // Set mesh selection in meshes panel
             this.navigator.SetSelection (new Selection (SelectionType.Mesh, meshUserData.originalMeshInstance.id));
+            
+            // Try to resolve to structure entity (zone > floor > building)
+            const expressId = this.GetExpressIdFromMesh (meshUserData);
+            if (expressId !== null) {
+                const entity = getEntityForExpressId (expressId);
+                if (entity) {
+                    // Select in structure tree (no callback to avoid loops)
+                    this.navigator.SelectStructureEntity (entity, false);
+                    
+                    // Apply highlight and frame (same as tree selection)
+                    const expressIds = getExpressIdsForEntity (entity);
+                    if (entity.entityType === 'building') {
+                        clearGeometryHighlight (this.viewer);
+                    } else if (expressIds.size > 0) {
+                        highlightGeometryByExpressIds (this.viewer, StructureHighlightColor, expressIds);
+                    }
+                    
+                    // Update entity info panel
+                    this.sidebar.UpdateEntityInfo (entity);
+                }
+            }
         }
+    }
+    
+    /**
+     * Extract expressID from mesh user data
+     * @param {Object} meshUserData 
+     * @returns {number|null}
+     */
+    GetExpressIdFromMesh (meshUserData)
+    {
+        if (!meshUserData || !meshUserData.originalMeshInstance) {
+            return null;
+        }
+        const mesh = meshUserData.originalMeshInstance.GetMesh ();
+        const name = mesh.GetName ();
+        const match = name && name.match (/^Mesh (\d+)$/);
+        if (match) {
+            return parseInt (match[1]);
+        }
+        return null;
     }
 
     OnModelMouseMoved (mouseCoordinates)
@@ -490,6 +536,46 @@ export class Website
             }
             return false;
         });
+    }
+    
+    /**
+     * Handle selection of building structure entities (building, floor, zone)
+     * @param {Object} entity - { entityType: 'building'|'floor'|'zone', entityId: number }
+     */
+    OnStructureEntitySelected (entity)
+    {
+        if (!entity) {
+            // Clear highlight if no entity selected
+            clearGeometryHighlight (this.viewer);
+            this.sidebar.UpdateEntityInfo (null);
+            return;
+        }
+        
+        console.log ('[Website] Structure entity selected:', entity);
+        
+        // Update entity info panel in sidebar
+        this.sidebar.UpdateEntityInfo (entity);
+        
+        // Get all expressIDs for this entity (including children for building/floor)
+        const expressIds = getExpressIdsForEntity (entity);
+        
+        console.log ('[Website] ExpressIDs for entity:', expressIds);
+        
+        if (entity.entityType === 'building') {
+            // For building: clear highlight and frame entire model
+            clearGeometryHighlight (this.viewer);
+            frameCameraOnModel (this.viewer, true);
+        } else {
+            // For floor/zone: highlight and frame the geometry
+            if (expressIds.size > 0) {
+                highlightGeometryByExpressIds (this.viewer, StructureHighlightColor, expressIds);
+                frameCameraOnExpressIds (this.viewer, expressIds, true);
+            } else {
+                // No geometry found for this entity - just clear highlight
+                clearGeometryHighlight (this.viewer);
+                console.warn ('[Website] No geometry found for entity:', entity);
+            }
+        }
     }
 
     LoadModelFromUrlList (urls, settings)
@@ -961,6 +1047,9 @@ export class Website
             onShowHidePanels : (show) => {
                 ShowDomElement (this.parameters.navigatorSplitterDiv, show);
                 CookieSetBoolVal ('ov_show_navigator', show);
+            },
+            onStructureEntitySelected : (entity) => {
+                this.OnStructureEntitySelected (entity);
             }
         });
     }

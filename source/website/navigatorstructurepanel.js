@@ -9,6 +9,8 @@ export class NavigatorStructurePanel extends NavigatorPanel
     {
         super (parentDiv);
         this.selectedItem = null;
+        // Map entityId -> { item, entityData, parentItem }
+        this.entityItemMap = new Map();
     }
 
     GetName ()
@@ -19,6 +21,13 @@ export class NavigatorStructurePanel extends NavigatorPanel
     GetIcon ()
     {
         return 'tree_view';
+    }
+    
+    Clear ()
+    {
+        super.Clear();
+        this.entityItemMap.clear();
+        this.selectedItem = null;
     }
 
     Fill (importResult)
@@ -38,10 +47,18 @@ export class NavigatorStructurePanel extends NavigatorPanel
         this.treeView.AddChild (rootItem);
         rootItem.ShowChildren(true);
         
+        // Store reference for building
+        const buildingEntityData = { entityType: 'building', entityId: buildingStructure.id };
+        this.entityItemMap.set(buildingStructure.id, { 
+            item: rootItem, 
+            entityData: buildingEntityData,
+            parentItem: null 
+        });
+        
         // Add click handler for Building
         rootItem.OnClick((ev) => {
             // Toggle expansion is handled by TreeViewGroupItem, but we also want to select
-            this.SetSelection(rootItem, { entityType: 'building', entityId: buildingStructure.id });
+            this.SetSelection(rootItem, buildingEntityData);
         });
 
         // Add Floors
@@ -50,9 +67,17 @@ export class NavigatorStructurePanel extends NavigatorPanel
                 let floorItem = new TreeViewGroupItem (floor.name || Loc('Floor'), null);
                 rootItem.AddChild (floorItem);
                 
+                // Store reference for floor
+                const floorEntityData = { entityType: 'floor', entityId: floor.id };
+                this.entityItemMap.set(floor.id, { 
+                    item: floorItem, 
+                    entityData: floorEntityData,
+                    parentItem: rootItem 
+                });
+                
                 // Add click handler for Floor
                 floorItem.OnClick((ev) => {
-                    this.SetSelection(floorItem, { entityType: 'floor', entityId: floor.id });
+                    this.SetSelection(floorItem, floorEntityData);
                 });
 
                 // Add Zones
@@ -61,58 +86,126 @@ export class NavigatorStructurePanel extends NavigatorPanel
                         let zoneItem = new TreeViewSingleItem (zone.name || Loc('Zone'), null);
                         floorItem.AddChild (zoneItem);
                         
+                        // Store reference for zone
+                        const zoneEntityData = { entityType: 'zone', entityId: zone.id };
+                        this.entityItemMap.set(zone.id, { 
+                            item: zoneItem, 
+                            entityData: zoneEntityData,
+                            parentItem: floorItem 
+                        });
+                        
                         // Add click handler for Zone
                         zoneItem.OnClick(() => {
-                            this.SetSelection(zoneItem, { entityType: 'zone', entityId: zone.id });
+                            this.SetSelection(zoneItem, zoneEntityData);
                         });
                     }
                 }
             }
         }
     }
-
-    SetSelection(item, entityData) {
-        if (this.selectedItem) {
-            this.selectedItem.SetSelected(false);
-        }
-        
-        this.selectedItem = item;
-        
-        // TreeViewGroupItem doesn't have SetSelected in the base code I read, 
-        // but TreeViewSingleItem does. 
-        // If TreeViewGroupItem inherits from TreeViewItem but not TreeViewSingleItem, 
-        // we might need to handle highlighting manually or check if TreeViewGroupItem supports it.
-        // Looking at treeview.js: TreeViewGroupItem extends TreeViewItem. TreeViewSingleItem extends TreeViewItem.
-        // TreeViewSingleItem has SetSelected. TreeViewGroupItem does NOT.
-        // However, for this task, "Indicate which item is currently selected (simple highlight)" is required.
-        // I will check if I can add a simple class or if I should modify TreeViewGroupItem.
-        // For now, I'll try to use the same class manipulation as TreeViewSingleItem.
-        
-        if (item.SetSelected) {
-            item.SetSelected(true);
-        } else {
-            // Manual highlight for Group Items if they don't support SetSelected
-            if (this.selectedItem.mainElement) {
-                // Remove 'selected' from all items first? 
-                // The previous selectedItem.SetSelected(false) handles the previous one if it was a SingleItem.
-                // If it was a GroupItem, we need to remove the class manually.
-                // To be safe, I should probably implement a helper or extend the class, 
-                // but for now I will just toggle the class.
-                
-                // Note: In the previous step I cleared selection on `this.selectedItem`.
-                // If `this.selectedItem` was a GroupItem, I need to handle that unselect too.
+    
+    /**
+     * Select an entity by its ID (called from external code, e.g., 3D click)
+     * @param {Object} entity - { entityType, entityId }
+     * @param {boolean} fireCallback - Whether to fire the onEntitySelected callback (default false to avoid loops)
+     */
+    SelectEntityById (entity, fireCallback = false)
+    {
+        if (!entity) {
+            // Clear selection
+            if (this.selectedItem) {
+                if (this.selectedItem.SetSelected) {
+                    this.selectedItem.SetSelected(false);
+                } else {
+                    this.selectedItem.mainElement.classList.remove('selected');
+                }
+                this.selectedItem = null;
             }
-            
-            item.mainElement.classList.add('selected');
+            return;
         }
-
-        // Fire callback
-        if (this.callbacks && this.callbacks.onEntitySelected) {
-            this.callbacks.onEntitySelected(entityData);
+        
+        const entityId = typeof entity.entityId === 'string' ? parseInt(entity.entityId) : entity.entityId;
+        const entry = this.entityItemMap.get(entityId);
+        
+        if (!entry) {
+            console.warn('[NavigatorStructurePanel] Entity not found in tree:', entity);
+            return;
+        }
+        
+        // Expand parent items to make this node visible
+        this.ExpandParents(entry);
+        
+        // Select the item
+        if (fireCallback) {
+            // Use SetSelection which fires callback
+            this.SetSelection(entry.item, entry.entityData);
+        } else {
+            // Just update visual selection without firing callback
+            this.SetSelectionVisual(entry.item);
+        }
+        
+        // Scroll to make the item visible
+        this.ScrollToItem(entry.item);
+    }
+    
+    /**
+     * Expand all parent items to make a node visible
+     */
+    ExpandParents (entry)
+    {
+        let parent = entry.parentItem;
+        while (parent) {
+            if (parent.ShowChildren) {
+                parent.ShowChildren(true);
+            }
+            // Find parent's entry
+            let parentEntry = null;
+            for (const [id, e] of this.entityItemMap) {
+                if (e.item === parent) {
+                    parentEntry = e;
+                    break;
+                }
+            }
+            parent = parentEntry ? parentEntry.parentItem : null;
         }
     }
     
-    // Override SetSelection to handle the manual group item selection logic better
+    /**
+     * Scroll tree to make an item visible
+     */
+    ScrollToItem (item)
+    {
+        if (item && item.mainElement) {
+            item.mainElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+    
+    /**
+     * Set selection visual only (no callback)
+     */
+    SetSelectionVisual (item)
+    {
+        // Deselect previous
+        if (this.selectedItem) {
+            if (this.selectedItem.SetSelected) {
+                this.selectedItem.SetSelected(false);
+            } else {
+                this.selectedItem.mainElement.classList.remove('selected');
+            }
+        }
+
+        this.selectedItem = item;
+
+        // Select new
+        if (this.selectedItem) {
+            if (this.selectedItem.SetSelected) {
+                this.selectedItem.SetSelected(true);
+            } else {
+                this.selectedItem.mainElement.classList.add('selected');
+            }
+        }
+    }
+
     SetSelection(item, entityData) {
         // Deselect previous
         if (this.selectedItem) {

@@ -3,6 +3,7 @@ import { PanelSet } from './panelset.js';
 import { SidebarAnalyticsPanel } from './sidebaranalyticspanel.js';
 import { SidebarDetailsPanel } from './sidebardetailspanel.js';
 import { SidebarSettingsPanel } from './sidebarsettingspanel.js';
+import { EntityInfoPanel } from './entityinfopanel.js';
 
 export class Sidebar
 {
@@ -11,14 +12,16 @@ export class Sidebar
         this.mainDiv = mainDiv;
         this.panelSet = new PanelSet (mainDiv);
 
+        this.entityInfoPanel = new EntityInfoPanel (this.panelSet.GetContentDiv ());
         this.analyticsPanel = new SidebarAnalyticsPanel (this.panelSet.GetContentDiv ());
         this.detailsPanel = new SidebarDetailsPanel (this.panelSet.GetContentDiv ());
         this.settingsPanel = new SidebarSettingsPanel (this.panelSet.GetContentDiv (), settings);
 
+        this.panelSet.AddPanel (this.entityInfoPanel);
         this.panelSet.AddPanel (this.analyticsPanel);
         this.panelSet.AddPanel (this.detailsPanel);
         this.panelSet.AddPanel (this.settingsPanel);
-        this.panelSet.ShowPanel (this.analyticsPanel);
+        this.panelSet.ShowPanel (this.entityInfoPanel);
     }
 
     IsPanelsVisible ()
@@ -113,5 +116,26 @@ export class Sidebar
     AddMaterialProperties (material)
     {
         this.detailsPanel.AddMaterialProperties (material);
+    }
+
+    /**
+     * Update the entity info panel with the selected entity
+     * @param {Object} entity - { entityType, entityId } or null
+     */
+    UpdateEntityInfo (entity)
+    {
+        this.entityInfoPanel.UpdateSelectedEntity (entity);
+        // Switch to entity info panel when an entity is selected
+        if (entity) {
+            this.panelSet.ShowPanel (this.entityInfoPanel);
+        }
+    }
+
+    /**
+     * Show building overview in the entity info panel
+     */
+    ShowBuildingOverview ()
+    {
+        this.entityInfoPanel.ShowBuildingOverview ();
     }
 }
