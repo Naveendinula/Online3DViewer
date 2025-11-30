@@ -250,6 +250,10 @@ export class Navigation
 		this.onMouseClick = null;
 		this.onMouseMove = null;
 		this.onContext = null;
+		
+		// Interceptor for custom mouse handling (e.g., section box)
+		this.mouseInterceptor = null;
+		this.isIntercepted = false;
 
 		if (this.canvas.addEventListener) {
 			this.canvas.addEventListener ('mousedown', this.OnMouseDown.bind (this));
@@ -265,6 +269,11 @@ export class Navigation
 			document.addEventListener ('mouseup', this.OnMouseUp.bind (this));
 			document.addEventListener ('mouseleave', this.OnMouseLeave.bind (this));
 		}
+	}
+
+	SetMouseInterceptor (interceptor)
+	{
+		this.mouseInterceptor = interceptor;
 	}
 
 	SetMouseClickHandler (onMouseClick)
@@ -300,6 +309,21 @@ export class Navigation
 	SetCamera (camera)
 	{
 		this.camera = camera;
+	}
+	
+	GetNDCCoordinates (screenCoords)
+	{
+		// Convert screen coordinates to normalized device coordinates (-1 to 1)
+		let width = this.canvas.width;
+		let height = this.canvas.height;
+		if (window.devicePixelRatio) {
+			width /= window.devicePixelRatio;
+			height /= window.devicePixelRatio;
+		}
+		return {
+			x: (screenCoords.x / width) * 2 - 1,
+			y: -(screenCoords.y / height) * 2 + 1
+		};
 	}
 
 	MoveCamera (newCamera, stepCount)
@@ -369,12 +393,36 @@ export class Navigation
 
 		this.mouse.Down (this.canvas, ev);
 		this.clickDetector.Start (this.mouse.GetPosition ());
+		
+		// Check if interceptor wants to handle this event
+		if (this.mouseInterceptor && this.mouseInterceptor.OnMouseDown) {
+			let mouseCoords = this.mouse.GetPosition ();
+			let ndcCoords = this.GetNDCCoordinates (mouseCoords);
+			if (this.mouseInterceptor.OnMouseDown (ndcCoords, ev.which)) {
+				this.isIntercepted = true;
+				return;
+			}
+		}
 	}
 
 	OnMouseMove (ev)
 	{
 		this.mouse.Move (this.canvas, ev);
 		this.clickDetector.Move (this.mouse.GetPosition ());
+		
+		// Always notify interceptor of mouse move for hover effects
+		if (this.mouseInterceptor && this.mouseInterceptor.OnMouseMove) {
+			let mouseCoords = GetDomElementClientCoordinates (this.canvas, ev.clientX, ev.clientY);
+			let ndcCoords = this.GetNDCCoordinates (mouseCoords);
+			if (this.isIntercepted) {
+				this.mouseInterceptor.OnMouseMove (ndcCoords);
+				return;
+			} else {
+				// Let interceptor update hover state but don't block
+				this.mouseInterceptor.OnMouseMove (ndcCoords);
+			}
+		}
+		
 		if (this.onMouseMove) {
 			let mouseCoords = GetDomElementClientCoordinates (this.canvas, ev.clientX, ev.clientY);
 			this.onMouseMove (mouseCoords);
@@ -419,6 +467,15 @@ export class Navigation
 	{
 		this.mouse.Up (this.canvas, ev);
 		this.clickDetector.End ();
+		
+		// Check if interceptor was handling this interaction
+		if (this.isIntercepted) {
+			if (this.mouseInterceptor && this.mouseInterceptor.OnMouseUp) {
+				this.mouseInterceptor.OnMouseUp ();
+			}
+			this.isIntercepted = false;
+			return;
+		}
 
 		if (this.clickDetector.IsClick ()) {
 			let mouseCoords = this.mouse.GetPosition ();
@@ -430,6 +487,14 @@ export class Navigation
 	{
 		this.mouse.Leave (this.canvas, ev);
 		this.clickDetector.Cancel ();
+		
+		// End any intercepted interaction
+		if (this.isIntercepted) {
+			if (this.mouseInterceptor && this.mouseInterceptor.OnMouseUp) {
+				this.mouseInterceptor.OnMouseUp ();
+			}
+			this.isIntercepted = false;
+		}
 	}
 
 	OnTouchStart (ev)

@@ -137,6 +137,9 @@ export class Website
         this.viewer.SetMouseClickHandler (this.OnModelClicked.bind (this));
         this.viewer.SetMouseMoveHandler (this.OnModelMouseMoved.bind (this));
         this.viewer.SetContextMenuHandler (this.OnModelContextMenu.bind (this));
+        
+        // Set up section box as mouse interceptor for handle dragging
+        this.viewer.SetMouseInterceptor (this.sectionBox);
 
         this.layouter.Init ();
         this.SetUIState (WebsiteUIState.Intro);
@@ -169,7 +172,48 @@ export class Website
         let boundingBox = this.viewer.GetBoundingBox ((meshUserData) => {
             return meshUserData.originalMeshInstance.id.IsEqual (selectedMeshId);
         });
-        this.sectionBox.SetBox (boundingBox);
+        // Use the new FitToBox method with a small margin
+        this.sectionBox.FitToBox (boundingBox, 0.05);
+        
+        // Zoom camera to fit the section box
+        let boundingSphere = new THREE.Sphere ();
+        boundingBox.getBoundingSphere (boundingSphere);
+        this.viewer.FitSphereToWindow (boundingSphere, true);
+    }
+    
+    /**
+     * Selection Box command - Revit-style fit to selected objects
+     * @param {number} marginFactor - Expansion factor (default 0.1 for 10%)
+     */
+    SelectionBox (marginFactor = 0.1)
+    {
+        let selectedMeshId = this.navigator.GetSelectedMeshId ();
+        if (selectedMeshId === null) {
+            return;
+        }
+        
+        // Get bounding box of selected mesh
+        let boundingBox = this.viewer.GetBoundingBox ((meshUserData) => {
+            return meshUserData.originalMeshInstance.id.IsEqual (selectedMeshId);
+        });
+        
+        if (!boundingBox || boundingBox.isEmpty ()) {
+            return;
+        }
+        
+        // Fit section box with margin
+        this.sectionBox.FitToBox (boundingBox, marginFactor);
+        
+        // Ensure section box is enabled
+        if (!this.sectionBox.IsEnabled ()) {
+            this.sectionBox.Enable (true);
+        }
+        
+        // Zoom camera to fit the section box bounds
+        const expandedBox = this.sectionBox.box.clone ();
+        let boundingSphere = new THREE.Sphere ();
+        expandedBox.getBoundingSphere (boundingSphere);
+        this.viewer.FitSphereToWindow (boundingSphere, true);
     }
 
     HasLoadedModel ()
@@ -323,6 +367,16 @@ export class Website
                 icon : 'fit',
                 onClick : () => {
                     this.navigator.FitMeshToWindow (meshUserData.originalMeshInstance.id);
+                }
+            });
+            // Selection Box command - Revit-style fit section box to selection
+            items.push ({
+                name : Loc ('Selection Box'),
+                icon : 'model',
+                onClick : () => {
+                    // First select this mesh if not already selected
+                    this.navigator.SetSelection (new Selection (SelectionType.Mesh, meshUserData.originalMeshInstance.id));
+                    this.SelectionBox (0.1);
                 }
             });
             if (this.sectionBox.IsEnabled ()) {

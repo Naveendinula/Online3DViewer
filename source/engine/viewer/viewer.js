@@ -220,6 +220,11 @@ export class Viewer
     {
         this.navigation.SetContextMenuHandler (onContext);
     }
+    
+    SetMouseInterceptor (interceptor)
+    {
+        this.navigation.SetMouseInterceptor (interceptor);
+    }
 
     SetEdgeSettings (edgeSettings)
     {
